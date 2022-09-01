@@ -655,6 +655,25 @@ public class Swiftfall {
         return try card!.promote()
     }
     
+    // exact
+    public static func search(query: String) throws -> CardList {
+        let encodeExactly = query.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed)!
+        let call = "\(scryfall)cards/search?q=\(encodeExactly)"
+        
+        var list:Result<CardList>?
+        
+        let semaphore = DispatchSemaphore(value: 0)
+        parseResource(call: call) {
+            (newList: Result<CardList>) in
+            list = newList
+            semaphore.signal()
+        }
+        
+        semaphore.wait()
+        
+        return try list!.promote()
+    }
+    
     // fuzzy
     public static func getRandomCard() throws -> Card {
         let call = "\(scryfall)cards/random"
