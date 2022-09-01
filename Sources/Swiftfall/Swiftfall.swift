@@ -182,7 +182,7 @@ public class Swiftfall {
         public let scryfallUri: String
         
         // A Scryfall API URI that you can request to begin paginating over the cards in this set.
-        public let searchUri: String
+        public var searchUri: String
         
         // the release date of the set
         public let releasedAt: String?
@@ -551,7 +551,64 @@ public class Swiftfall {
         }
     }
     
-    public init() {}
+    
+    private static func getCards(searchURI:String) -> [CardList?] {
+        let call = searchURI
+        
+        var cardlist: Result<CardList>?
+        
+        let semaphore = DispatchSemaphore(value: 0)
+        parseResource(call: call) {
+            (newcardlist: Result<CardList>) in
+            cardlist = newcardlist
+            semaphore.signal()
+        }
+        
+        semaphore.wait()
+        var cardListArray: [CardList?] = []
+        do {
+            if try cardlist!.promote().hasMore {
+                cardListArray += (self.getCards(searchURI: try cardlist!.promote().nextPage!))
+            }
+            let newlist = try cardlist!.promote()
+            cardListArray.append(newlist)
+            return cardListArray
+        } catch {
+            return []
+        }
+    }
+    
+    public static func getCards(search: String) -> [CardList?] {
+        
+        let encodeExactly = search.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed)!
+        let call = "\(Swiftfall.scryfall)cards/search?q=\(encodeExactly)"
+        
+        var cardlist: Result<CardList>?
+        
+        let semaphore = DispatchSemaphore(value: 0)
+        parseResource(call: call) {
+            (newcardlist: Result<CardList>) in
+            cardlist = newcardlist
+            semaphore.signal()
+        }
+        
+        semaphore.wait()
+        var cardListArray: [CardList?] = []
+        do {
+            if try cardlist!.promote().hasMore {
+                let nextCardListArray = self.getCards(searchURI: try cardlist!.promote().nextPage!)
+                for list in nextCardListArray {
+                    cardListArray.append(list)
+                }
+            }
+            let newlist = try cardlist!.promote()
+            cardListArray.append(newlist)
+            
+            return cardListArray
+        } catch {
+            return []
+        }
+    }
     
     /// Retreives JSON data from URL and parses it with JSON decoder.
     static func parseResource<ResultType: Decodable>(call: String, completion: @escaping (Result<ResultType>) -> ()) {
