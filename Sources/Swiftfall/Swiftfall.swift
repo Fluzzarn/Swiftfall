@@ -551,6 +551,8 @@ public class Swiftfall {
         }
     }
     
+    public init() {}
+    
     /// Retreives JSON data from URL and parses it with JSON decoder.
     static func parseResource<ResultType: Decodable>(call: String, completion: @escaping (Result<ResultType>) -> ()) {
         
